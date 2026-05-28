@@ -102,119 +102,6 @@ function spawnSession() {
 currentSession = spawnSession();
 console.log(`[server] session claude créée : ${currentSession.sessionId} (cwd=${CWD})`);
 
-// ---------- Page de chat (consomme /v1/messages) ----------
-const CHAT_HTML = `<!doctype html>
-<html lang="fr"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claude — chat (facc)</title>
-<style>
-  :root{--bg:#0b0b10;--panel:#15151c;--border:#2a2a35;--user:#2563eb;--asst:#1f2430;--txt:#e6e6ee;--muted:#8a8a9c}
-  *{box-sizing:border-box}
-  body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif}
-  header{padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-  header h1{margin:0;font-size:15px;font-weight:600}
-  header .meta{font-size:12px;color:var(--muted)}
-  header .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3ad17b;margin-right:5px}
-  header button{margin-left:auto;background:#3a3a48;color:#eee;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px}
-  header button:hover{background:#4a4a58}
-  #chat{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px}
-  .msg{max-width:80%;padding:10px 14px;border-radius:12px;line-height:1.5;white-space:normal;word-wrap:break-word}
-  .msg.user{align-self:flex-end;background:var(--user);border-bottom-right-radius:3px}
-  .msg.assistant{align-self:flex-start;background:var(--asst);border:1px solid var(--border);border-bottom-left-radius:3px}
-  .msg .role{font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
-  .msg.user .role{color:#cfe0ff}
-  .msg pre{background:#0b0b10;border:1px solid var(--border);border-radius:6px;padding:10px;overflow-x:auto;margin:6px 0}
-  .msg code{font-family:ui-monospace,monospace;font-size:13px}
-  .msg :not(pre)>code{background:#0b0b10;padding:1px 5px;border-radius:4px}
-  .typing{align-self:flex-start;color:var(--muted);font-style:italic;font-size:14px}
-  footer{padding:12px 16px;background:var(--panel);border-top:1px solid var(--border);display:flex;gap:10px}
-  textarea{flex:1;resize:none;background:#0b0b10;color:var(--txt);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;line-height:1.4;max-height:160px}
-  footer button{background:var(--user);color:#fff;border:0;padding:0 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
-  footer button:disabled{opacity:.5;cursor:not-allowed}
-</style></head><body>
-<header>
-  <h1>Claude</h1>
-  <span class="meta"><span class="dot"></span>facc · /v1/messages</span>
-  <button id="reset">Nouvelle conversation</button>
-</header>
-<div id="chat"></div>
-<footer>
-  <textarea id="input" rows="1" placeholder="Écris un message… (Entrée pour envoyer, Maj+Entrée = nouvelle ligne)" autofocus></textarea>
-  <button id="send">Envoyer</button>
-</footer>
-<script>
-const MODEL = 'claude-opus-4-7';
-const API_KEY = '__API_KEY__'; // injecté par le serveur (vide si pas d'auth)
-const chat = document.getElementById('chat');
-const input = document.getElementById('input');
-const sendBtn = document.getElementById('send');
-let messages = []; // historique Anthropic envoyé à chaque appel
-let busy = false;
-
-function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-// Markdown minimal et sûr : on échappe d'abord, puis on applique le formatage.
-function renderMarkdown(text){
-  let html = escapeHtml(text);
-  html = html.replace(/\`\`\`([\\s\\S]*?)\`\`\`/g,(_,c)=>'<pre><code>'+c.replace(/^\\n/,'')+'</code></pre>');
-  html = html.replace(/\`([^\`\\n]+)\`/g,'<code>$1</code>');
-  html = html.replace(/\\*\\*([^*]+)\\*\\*/g,'<strong>$1</strong>');
-  // sauts de ligne hors blocs <pre>
-  const parts = html.split(/(<pre>[\\s\\S]*?<\\/pre>)/);
-  html = parts.map(p=>p.startsWith('<pre>')?p:p.replace(/\\n/g,'<br>')).join('');
-  return html;
-}
-function addBubble(role, text){
-  const div = document.createElement('div');
-  div.className = 'msg '+role;
-  div.innerHTML = '<div class="role">'+(role==='user'?'Vous':'Claude')+'</div><div class="body">'+renderMarkdown(text)+'</div>';
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  return div;
-}
-function setBusy(b){busy=b;sendBtn.disabled=b;input.disabled=b;}
-
-async function send(){
-  const text = input.value.trim();
-  if(!text || busy) return;
-  addBubble('user', text);
-  messages.push({role:'user', content:text});
-  input.value=''; autosize();
-  setBusy(true);
-  const typing = document.createElement('div');
-  typing.className='typing'; typing.textContent='Claude écrit…';
-  chat.appendChild(typing); chat.scrollTop=chat.scrollHeight;
-  try{
-    const headers = {'content-type':'application/json'};
-    if (API_KEY) headers['x-api-key'] = API_KEY;
-    const res = await fetch('/v1/messages',{
-      method:'POST', headers,
-      body: JSON.stringify({model:MODEL, max_tokens:4096, messages})
-    });
-    const data = await res.json();
-    typing.remove();
-    if(!res.ok){
-      addBubble('assistant','⚠️ Erreur : '+(data?.error?.message||res.status));
-    }else{
-      const reply = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
-      addBubble('assistant', reply||'(réponse vide)');
-      messages.push({role:'assistant', content:reply});
-    }
-  }catch(e){
-    typing.remove();
-    addBubble('assistant','⚠️ Réseau : '+e.message);
-  }finally{
-    setBusy(false); input.focus();
-  }
-}
-
-function autosize(){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,160)+'px';}
-input.addEventListener('input', autosize);
-input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){e.preventDefault(); send();} });
-sendBtn.addEventListener('click', send);
-document.getElementById('reset').addEventListener('click', ()=>{ messages=[]; chat.innerHTML=''; input.focus(); });
-</script></body></html>`;
-
 function readBody(req, limit = 5 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -317,13 +204,6 @@ async function streamAnthropicResponse({ res, session, prompt, body, lastUser, s
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
-
-  // ---------- Page de chat ----------
-  if ((url.pathname === '/' || url.pathname === '/index.html') && req.method === 'GET') {
-    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    res.end(CHAT_HTML.replace('__API_KEY__', API_KEY || ''));
-    return;
-  }
 
   // ---------- Réception du Stop hook ----------
   if (url.pathname === '/_hook/stop' && req.method === 'POST') {

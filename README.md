@@ -10,7 +10,7 @@ is interactive (not `claude -p`), responses are billed against your
 > Claude subscription as an API backend, which likely violates Anthropic's terms.
 
 ```
-Client (Anthropic SDK / curl / chat UI)
+Client (Anthropic SDK / curl)
         │  POST /v1/messages   (Anthropic shape)
         ▼
    server.mjs ──── injects the prompt into the PTY
@@ -53,9 +53,8 @@ npm start
 > Claude Code itself refuses to start in bypass mode under root/sudo. Run it as a
 > regular, unprivileged user.
 
-Then open the **chat UI**: <http://localhost:3066/>. Configuration lives in
-`.env` (copy `.env.example` manually if you skip `gen-key`) — see
-[Configuration](#configuration-environment-variables).
+Configuration lives in `.env` (copy `.env.example` manually if you skip
+`gen-key`) — see [Configuration](#configuration-environment-variables).
 
 ## How it works
 
@@ -80,7 +79,6 @@ the session unambiguously.
 
 | Method | Route | Purpose |
 |--------|-------|---------|
-| `GET` | `/` | Web chat UI (bubbles, markdown, multi-turn, reset) |
 | `POST` | `/v1/messages` | Anthropic Messages façade (non-streaming + simulated SSE streaming) |
 | `POST` | `/_hook/stop` | Internal — receives the `claude` Stop hook |
 | `GET` | `/health` | Status (current session, exit code) |
@@ -210,7 +208,7 @@ tail -f logs/requests.jsonl
 
 | File | Purpose |
 |------|---------|
-| `server.mjs` | HTTP server: `/v1/messages` façade, `/_hook/stop`, chat page, logs, auto-restart |
+| `server.mjs` | HTTP server: `/v1/messages` façade, `/_hook/stop`, `/health`, logs, auto-restart |
 | `pty-session.mjs` | Interactive `claude` session (PTY) + prompt injection + hook correlation + queue |
 | `anthropic.mjs` | Anthropic request parsing + flattening + response formatting |
 | `transcript.mjs` | Extracts the last assistant message (real usage/stop_reason) |
