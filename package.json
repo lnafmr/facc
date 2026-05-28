@@ -7,8 +7,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
     "gen-key": "node generate-key.mjs",
-    "test:sdk": "node test-sdk.mjs",
-    "viewer": "node demo.mjs"
+    "test:sdk": "node test-sdk.mjs"
   },
   "dependencies": {
     "node-pty": "^1.1.0"

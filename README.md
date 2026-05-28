@@ -213,7 +213,6 @@ tail -f logs/requests.jsonl
 | `anthropic.mjs` | Anthropic request parsing + flattening + response formatting |
 | `transcript.mjs` | Extracts the last assistant message (real usage/stop_reason) |
 | `test-sdk.mjs` | Validation against the real `@anthropic-ai/sdk` |
-| `demo.mjs` | Original terminal viewer POC (xterm.js + SSE) — `npm run viewer` |
 
 ## Stack
 
