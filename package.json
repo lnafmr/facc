@@ -1,0 +1,19 @@
+{
+  "name": "facc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Façade API Anthropic Messages au-dessus d'une session Claude Code interactive (PTY + Stop hook)",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "gen-key": "node generate-key.mjs",
+    "test:sdk": "node test-sdk.mjs",
+    "viewer": "node demo.mjs"
+  },
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.99.0"
+  }
+}
